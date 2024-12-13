@@ -1,0 +1,78 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background-color: #84cff2;
+    color: white;
+    padding: 10px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+  }
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+.search-bar {
+  display: flex;
+  align-items: center;
+}
+
+#chat-input {
+  width: 300px;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+#btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+}
+
+#btn:hover {
+  background-color: #45a049;
+}
+
+.nav-icons span {
+  margin-left: 20px;
+  cursor: pointer;
+}
+
+#output {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 70px 10px 10px; /* Adjust padding to account for fixed header */
+}
+
+.book {
+  width: 23%;
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.book img {
+  max-width: 100%;
+  height: auto;
+}
