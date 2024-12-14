@@ -29,22 +29,59 @@
 </header>
 
 <div id="output"></div>
-  
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-  <!-- axiosライブラリの読み込み -->
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 
-  <script>
-    // リクエストを送るurlを準備
-    // const url = 'https://www.googleapis.com/books/v1/volumes?q=intitle:javascript';
-    // const url = 'https://www.googleapis.com/books/v1/volumes?q=inauthor:村上春樹';
+<!-- モーダル -->
+<div id="myModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>  <!--×ボタン-->>
+    <h2>本の新規登録</h2>
+    <p><strong>タイトル:</strong> <span id="modal-title"></span></p>
+    <p><strong>著者:</strong> <span id="modal-authors"></span></p>
+    <p><strong>ページ数:</strong> <span id="modal-pages"></span></p>
+    <button id="register-btn">登録</button>
+  </div>
+</div>
 
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script type="module">
+  // Firebaseモジュールのインポート
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js';
+  import { 
+    getFirestore,
+    collection,
+    addDoc,
+    orderBy,
+    serverTimestamp,
+    onSnapshot, //データを取ってくる
+    query,
+    limit,
+    getDocs, //データを取ってくる
+    updateDoc,
+    doc
+  } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js';
+ 
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyALMFGtU4yDeqKo7j4ROWimWsLp581-Mg0",
+    authDomain: "bookapp-af497.firebaseapp.com",
+    projectId: "bookapp-af497",
+    storageBucket: "bookapp-af497.appspot.com",
+    messagingSenderId: "441851565990",
+    appId: "1:441851565990:web:03cb7a74b4058e5dec6167"
+  };
+
+  // Firebaseの初期化
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 検索ボタンのクリックイベント
     document.getElementById('btn').addEventListener('click', function() {
       const keyword = document.getElementById('chat-input').value;
       const url = `https://www.googleapis.com/books/v1/volumes?q=${keyword}&maxResults=5`;
 
 
-    axios
+   axios
       .get(url)
       .then(function (response) {
       // リクエスト成功時の処理（responseに結果が入っている）
@@ -53,10 +90,10 @@
       response.data.items.forEach(function(book) {
         const bookInfo = book.volumeInfo;
         books.push(`
-            <div class="book">
-              <img src="${bookInfo.imageLinks ? bookInfo.imageLinks. thumbnail:''}" alt="${bookInfo.title}">
+            <div class="book" onclick="showDetail('${bookInfo.title}', '${bookInfo.authors ? bookInfo.authors.join(", ") : ''}', '${bookInfo.pageCount}', '${bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : ''}')">
+              <img src="${bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : ''}" alt="${bookInfo.title}">
               <p>${bookInfo.title}</p>
-            </div>   
+            </div>  
             `);
       });
       document.getElementById('output').innerHTML = books.join('');
@@ -73,6 +110,30 @@
 
 
     });
+
+  //モーダルを表示して本の詳細と登録
+  // windows でグローバルスコープに公開し、上記のクリックイベント時にも呼び出せるようにするのがポイント。
+  window.showDetail = function showDetail(title, author, pages, imageUrl) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-authors').textContent = author;
+    document.getElementById('modal-pages').textContent = pages;
+    document.getElementById('myModal').style.display = 'block'; //モーダル全体の表示。block により隠れていたモーダルが表示できる
+
+    document.getElementById('register-btn').onclick = function () {
+      const book = {
+        title: title,
+        author: author,
+        pages: pages,
+        imageUrl: imageUrl
+      };
+
+    }
+  };
+
+  // ×で閉じる処理
+  document.querySelector('.close').addEventListener('click', function() {
+    document.getElementById('myModal').style.display = 'none';
+  });
 
 
 
