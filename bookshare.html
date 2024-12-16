@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>googleBooksAPI</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+
+<body>
+
+<header>
+  <div class="header-container">
+    <div class="logo">本棚シェア</div>
+    <div class="search-bar">
+      <input type="text" name="" id="chat-input" placeholder="登録する本のキーワードを入力">
+      <button id="btn">検索</button>
+    </div>
+    <div>
+      <div class="nav-icons">
+        <span>アカウント</span>
+        <button id="logout-btn">ログアウト</button>
+        <span>カレンダー</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+  <!-- 本のリストを表示するセクション -->
+<div id="my-book-container">
+  <div id="book-list-header">
+    <h2>さんの本棚</h2>
+  </div>
+
+  <div id="book-list" class="book-list"></div>
+</div>
+
+<!-- グループの本棚表示 -->
+<button id="show-family-books-btn">家族の本棚を表示</button>
+
+  <!-- 検索結果の表示場所 -->
+<div id="output"></div>
+
+
+<!-- モーダル -->
+<div id="myModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>  <!--×ボタン-->>
+    <h2>この本の詳細</h2>
+    <p><strong>タイトル:</strong> <span id="modal-title"></span></p>
+    <p><strong>著者:</strong> <span id="modal-authors"></span></p>
+    <p><strong>ページ数:</strong> <span id="modal-pages"></span></p>
+    <button id="register-btn">登録</button>
+  </div>
+</div>
+
+
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script type="module">
+  // Firebaseモジュールのインポート
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js';
+  // import {  } from 'https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js';
+  import { 
+    getFirestore,
+    collection,
+    addDoc,
+    orderBy,
+    serverTimestamp,
+    onSnapshot, //データを取ってくる
+    query,
+    limit,
+    getDocs, //データを取ってくる
+    updateDoc,
+    where,
+    doc
+  } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js';
+  // ログインしているユーザー情報取得のために利用。
+   import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js';
+
+
+  
+   //Firebaseの初期化
+  const firebaseConfig = {
+
+  };
+
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth();
+
+  // ログインしているユーザーを右上に表示
+  auth.onAuthStateChanged(user => {
+    const accoountElement = document.querySelector('.nav-icons span:first-child');
+    if(user) {
+      const userName = user.displayName || "ゲスト";
+      accoountElement.textContent = `${userName} さんがログイン中`;
+      const bookListHeader = document.getElementById('book-list-header'); // 本棚のヘッダー部分
+
+      //本棚のタイトル部分
+      bookListHeader.querySelector('h2').textContent = `${userName} さんの本棚`; 
+      
+      loadUserBooks(user.uid);
+    }else {
+      console.log("ログインしているユーザーはいません。");
+      accoountElement.textContent = "ログインしていません"
+     }
+  });
+
+  // userId 取得
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      const userId = user.uid;
+    }});
+
+// 登録した本の情報をFirestore から取得
+function loadUserBooks(userId) {
+
+// 本のリストを表示するセクション
+const bookListElement = document.getElementById('book-list');
+
+// Firestore からユーザーが過去に登録した本を取得
+const booksCollection = collection(db, "books");
+const booksQuery = query(booksCollection, 
+  where("userId", "==", userId), //ログイン中のユーザーの本
+  where("title", "!=", ""), 
+  orderBy("timestamp"))
+
+  // リアルタイムで本の情報を取得
+    onSnapshot(booksQuery, snapshot => {
+    bookListElement.innerHTML = ''; //リストをクリア
+    snapshot.forEach(doc => {
+      const book = doc.data();
+      const bookElement = document.createElement('div');
+      bookElement.classList.add('book');
+      bookElement.innerHTML = `
+        <img src="${book.thumbnail}" alt="${book.title}">
+        <p><strong>タイトル:</strong> ${book.title}</p>
+        <p><strong>著者:</strong> ${book.authors}</p>
+        <p><strong>ページ数:</strong> ${book.pageCount}</p>
+       `;
+      bookListElement.appendChild(bookElement);
+        });
+      });
+}
+
+// 家族の本棚をクリックした時
+document.getElementById('show-family-books-btn').addEventListener('click', function() {
+  const user = auth.currentUser;
+  if (user) {
+    const userId = user.uid;
+    const familyId = "family123"; // 仮置きのFamilyId（実際には適切に取得する必要あり）
+
+    // FirestoreからFamilyIdが一致し、userIdが現在のユーザーでない本を取得
+    const booksCollection = collection(db, "books");
+    const familyBooksQuery = query(
+      booksCollection,
+      where("familyId", "==", familyId),
+      where("userId", "!=", userId) // ログインユーザーの登録した本を除外
+    );
+
+    // リアルタイムで本の情報を取得
+    onSnapshot(familyBooksQuery, snapshot => {
+      const bookListElement = document.getElementById('output');
+      bookListElement.innerHTML = ''; // リストをクリア
+
+      snapshot.forEach(doc => {
+        const book = doc.data();
+        const bookElement = document.createElement('div');
+        bookElement.classList.add('book');
+        bookElement.innerHTML = `
+          <img src="${book.thumbnail}" alt="${book.title}">
+          <p><strong>タイトル:</strong> ${book.title}</p>
+          <p><strong>著者:</strong> ${book.authors}</p>
+          <p><strong>ページ数:</strong> ${book.pageCount}</p>
+        `;
+        // 本をクリックしたときにモーダルを表示
+        bookElement.addEventListener('click', () => {
+          showDetail(book.title, book.ahtuors, book.pageCount, book.thumbnail);
+        });
+        bookListElement.appendChild(bookElement);
+      });
+
+      if (snapshot.empty) {
+        bookListElement.innerHTML = '<p>家族の本棚には他の登録者の本がありません。</p>';
+      }
+    });
+  } else {
+    alert("ログインが必要です。");
+  }
+});
+
+
+  // 検索ボタンのクリックイベント
+  document.getElementById('btn').addEventListener('click', function() {
+      const keyword = document.getElementById('chat-input').value;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${keyword}&maxResults=10`;
+
+   axios
+      .get(url)
+      .then(function (response) {
+      // リクエスト成功時の処理（responseに結果が入っている）
+      console.log(response.data.items[0].volumeInfo.title);
+      const books = []; //検索結果を格納
+      response.data.items.forEach(function(book) {
+        const bookInfo = book.volumeInfo;
+        books.push(`
+            <div class="book" onclick="showDetail('${bookInfo.title}', '${bookInfo.authors ? bookInfo.authors.join(", ") : ''}', '${bookInfo.pageCount}', '${bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : ''}')">
+              <img src="${bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : ''}" alt="${bookInfo.title}">
+              <p>${bookInfo.title}</p>
+            </div>  
+            `);
+      });
+      document.getElementById('output').innerHTML = books.join('');
+  })
+  .catch(function (error) {
+    // リクエスト失敗時の処理（errorにエラー内容が入っている）
+    console.log(error);
+  })
+  .finally(function () {
+    // 成功失敗に関わらず必ず実行
+    console.log("done!");
+  });
+
+    });
+
+  //モーダルを表示して本の詳細と登録
+  // windows でグローバルスコープに公開し、上記のクリックイベント時にも呼び出せるようにするのがポイント。
+  window.showDetail = function showDetail(title, author, pages, imageUrl) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-authors').textContent = author;
+    document.getElementById('modal-pages').textContent = pages;
+    document.getElementById('myModal').style.display = 'block'; //モーダル全体の表示。block により隠れていたモーダルが表示できる
+
+    // Firestore に登録
+    document.getElementById('register-btn').onclick = function () {
+      const user = auth.currentUser;
+      if (user) {
+        const book = {
+        userId: user.uid,
+        familyId: "family123", //仮
+        bookId: Date.now().toString(), //本のIDをユニークな値で持つために
+        title: title,
+        authors: author,
+        pageCount: Number(pages),
+        thumbnail: imageUrl,
+        timestamp: serverTimestamp() //サーバー側で使う
+      };
+
+      
+      // firestore のbook コレクションに登録
+      addDoc(collection(db, "books"), book)
+       .then((docRef) => {
+        console.log("ドキュメントが追加されました: ", docRef.id);
+
+        // モーダルを閉じる
+        document.getElementById('myModal').style.display = 'none';
+       })
+       .catch(error =>console.error("エラー:", error));
+      } else {
+        alert("ログインしていません")
+    }
+    };
+  };
+
+     
+//  ログアウトする処理
+document.getElementById('logout-btn').addEventListener('click', function() {
+  signOut(auth)
+    .then(() => {
+      alert("ログアウトしました。");
+      window.location.reload();
+    })
+    .catch((error) => {
+      console.log("ログアウトできませんでした:", error);
+    });
+});
+
+
+  // ×で閉じる処理
+  document.querySelector('.close').addEventListener('click', function() {
+    document.getElementById('myModal').style.display = 'none';
+  });
+
+  // モーダル以外の場所がクリックされたときに、モーダルを非表示
+  window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+
+  </script>
+</body>
+
+</html>
